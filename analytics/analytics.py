@@ -31,14 +31,14 @@ class AnalyticsConnection:
                         {"startDate": start_date, "endDate": end_date}
                     ],
                     "metrics": [{"expression": "ga:pageviews"}],
-                    "dimensions": [{"name": "ga:pagePath"}, {"name": "ga:fullReferrer"}, {"name": "ga:pageTitle"}],
+                    "dimensions": [{"name": "ga:pagePath"}, {"name": "ga:fullReferrer"}, {"name": "ga:source"}, {"name": "ga:pageTitle"}],
                     "pageSize": 10000,
                     "dimensionFilterClauses": [
                         {
                             "filters": [
                                 {
                                     "operator": "EXACT",
-                                    "dimensionName": "ga:pagePath",
+                                    "dimensionName": "ga:landingPagePath",
                                     "expressions": [
                                         page
                                     ]
@@ -76,16 +76,25 @@ class AnalyticsConnection:
 
 
 if __name__ == "__main__":
+    import yaml
+    collections = yaml.safe_load(open('config.yml', 'r'))['collections']
     connection = AnalyticsConnection(
         credentials="connection.json",
         view_id="118513499",
     )
-    page = 'rfta.lib.utk.edu/'
-    connection.process_pages(page=page, start_date='365daysago', end_date='today',)
-    results = connection.results
-    for result in results:
-        x = {
-            'source': result['dimensions'][1],
-            'views': result['metrics'][0]['values'][0]
-        }
-        print(x)
+    all_sources = {}
+    for collection in collections:
+        page = collection
+        connection.process_pages(page=page, start_date='365daysago', end_date='today',)
+        results = connection.results
+        for result in results:
+            x = {
+                'source': result['dimensions'][1],
+                'views': int(result['metrics'][0]['values'][0]),
+                "actual_source": result['dimensions'][2]
+            }
+            if x['actual_source'] not in all_sources:
+                all_sources[x['actual_source']] = x['views']
+            else:
+                all_sources[x['actual_source']] += x['views']
+    print(all_sources)
