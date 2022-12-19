@@ -83,5 +83,9 @@ if __name__ == "__main__":
     page = 'rfta.lib.utk.edu/'
     connection.process_pages(page=page, start_date='365daysago', end_date='today',)
     results = connection.results
-    with open('test.py', 'w') as current_results:
-        current_results.write(str(results))
+    for result in results:
+        x = {
+            'source': result['dimensions'][1],
+            'views': result['metrics'][0]['values'][0]
+        }
+        print(x)
