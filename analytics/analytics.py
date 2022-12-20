@@ -75,6 +75,36 @@ class AnalyticsConnection:
             return
 
 
+class AnalyticsInterpretter:
+    def __init__(self, data):
+        self.original_data = self.__sort_traffic_sources(data)
+        self.total_views = self.__get_total_views(data)
+        self.data_as_percentages = self.__as_percentages()
+
+    @staticmethod
+    def __get_total_views(data):
+        total = 0
+        for k, v in data.items():
+            total += v
+        return total
+
+    def __as_percentages(self):
+        x = {}
+        for k, v in self.original_data.items():
+            x[k] = '{:.1%}'.format(v/self.total_views)
+        return x
+
+    def count_percentages(self):
+        total = 0
+        for k, v in self.data_as_percentages.items():
+            total = total + float(v.replace('%', ''))
+        return total
+
+    @staticmethod
+    def __sort_traffic_sources(sortable):
+        return dict(sorted(sortable.items(), key=lambda x: x[1], reverse=True))
+
+
 if __name__ == "__main__":
     import yaml
     collections = yaml.safe_load(open('config.yml', 'r'))['collections']
@@ -97,4 +127,4 @@ if __name__ == "__main__":
                 all_sources[x['actual_source']] = x['views']
             else:
                 all_sources[x['actual_source']] += x['views']
-    print(all_sources)
+    print(AnalyticsInterpretter(all_sources).original_data)
