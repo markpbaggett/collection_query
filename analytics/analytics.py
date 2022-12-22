@@ -30,7 +30,7 @@ class AnalyticsConnection:
                     "dateRanges": [
                         {"startDate": start_date, "endDate": end_date}
                     ],
-                    "metrics": [{"expression": "ga:pageviews"}],
+                    "metrics": [{"expression": "ga:uniquePageviews"}],
                     "dimensions": [{"name": "ga:pagePath"}, {"name": "ga:fullReferrer"}, {"name": "ga:source"}, {"name": "ga:pageTitle"}],
                     "pageSize": 10000,
                     "dimensionFilterClauses": [
@@ -66,8 +66,11 @@ class AnalyticsConnection:
             current_set = self.find_pages()
         else:
             current_set = initial_pages
-        for view in current_set['reports'][0]['data']['rows']:
-            self.results.append(view)
+        try:
+            for view in current_set['reports'][0]['data']['rows']:
+                self.results.append(view)
+        except KeyError:
+            pass
         if 'nextPageToken' in current_set['reports'][0]:
             new_request = self.find_pages(token=current_set['reports'][0]['nextPageToken'])
             return self.process_pages(new_request)
@@ -77,7 +80,7 @@ class AnalyticsConnection:
 
 class AnalyticsInterpretter:
     def __init__(self, data):
-        self.original_data = self.__sort_traffic_sources(data)
+        self.original_data = self.__sort_traffic_sources(self.__combine_similar_sources(data))
         self.total_views = self.__get_total_views(data)
         self.data_as_percentages = self.__as_percentages()
 
@@ -103,6 +106,31 @@ class AnalyticsInterpretter:
     @staticmethod
     def __sort_traffic_sources(sortable):
         return dict(sorted(sortable.items(), key=lambda x: x[1], reverse=True))
+
+    @staticmethod
+    def __combine_similar_sources(data):
+        sources_to_replace = {
+            'search.google.com': 'google',
+            't.co': 'twitter',
+            'lm.facebook.com': 'facebook',
+            'l.facebook.com': 'facebook',
+            'us13.campaign-archive.com': 'mailchimp',
+        }
+        values_to_pop = []
+        values_to_add = []
+        for k, v in data.items():
+            if k in sources_to_replace:
+                values_to_pop.append(k)
+                values_to_add.append({ sources_to_replace[k]: v})
+        for value in values_to_pop:
+            data.pop(value)
+        for value in values_to_add:
+            for k, v in value.items():
+                if k in data:
+                    data[k] += v
+                else:
+                    data[k] = v
+        return data
 
 
 if __name__ == "__main__":
