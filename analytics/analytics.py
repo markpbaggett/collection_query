@@ -146,13 +146,19 @@ if __name__ == "__main__":
         connection.process_pages(page=page, start_date='365daysago', end_date='today',)
         results = connection.results
         for result in results:
-            x = {
-                'source': result['dimensions'][1],
-                'views': int(result['metrics'][0]['values'][0]),
-                "actual_source": result['dimensions'][2]
-            }
-            if x['actual_source'] not in all_sources:
-                all_sources[x['actual_source']] = x['views']
-            else:
-                all_sources[x['actual_source']] += x['views']
+            """
+            Must ensure that the ga:pagePath is the same as what's in the config because ga:landingPagePaths do not
+            ignore HTTP parameters like queries 
+            (e.g. digital.lib.utk.edu/collections/islandora/object/collections:volvoices?page=16).
+            """
+            if result['dimensions'][0] == collection:
+                x = {
+                    'source': result['dimensions'][1],
+                    'views': int(result['metrics'][0]['values'][0]),
+                    "actual_source": result['dimensions'][2]
+                }
+                if x['actual_source'] not in all_sources:
+                    all_sources[x['actual_source']] = x['views']
+                else:
+                    all_sources[x['actual_source']] += x['views']
     print(AnalyticsInterpretter(all_sources).original_data)
