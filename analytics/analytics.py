@@ -22,7 +22,6 @@ class AnalyticsConnection:
         return build("analyticsreporting", "v4", credentials=credentials)
 
     def find_pages(self, page, token=None, start_date="45daysAgo", end_date="today"):
-        """..."""
         request = {
             "reportRequests": [
                 {
@@ -141,6 +140,7 @@ if __name__ == "__main__":
         view_id="118513499",
     )
     all_sources = {}
+    primo_collections = {}
     for collection in collections:
         page = collection
         connection.process_pages(page=page, start_date='365daysago', end_date='today',)
@@ -161,4 +161,11 @@ if __name__ == "__main__":
                     all_sources[x['actual_source']] = x['views']
                 else:
                     all_sources[x['actual_source']] += x['views']
+                if "utk.primo.exlibrisgroup.com" in x['source']:
+                    if collection not in primo_collections:
+                        primo_collections[collection] = x['views']
+                    else:
+                        primo_collections[collection] += x['views']
     print(AnalyticsInterpretter(all_sources).original_data)
+    print(AnalyticsInterpretter(all_sources).data_as_percentages)
+    print(dict(sorted(primo_collections.items(), key=lambda x: x[1], reverse=True)))
