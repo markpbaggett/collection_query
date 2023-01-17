@@ -77,6 +77,42 @@ class AnalyticsConnection:
             return
 
 
+class SearchTerm:
+    def __init__(self, url):
+        self.url = url
+        self.search_term = self.find_search_term()
+        self.results = self.build_results()
+
+    def find_search_term(self):
+        return self.url.split('/')[4].split('?')[0]
+
+    def find_collection_if_exists(self):
+        if '&cp' in self.url:
+            return self.url.split('&cp=')[1].split('&')[0]
+        else:
+            return None
+
+    def find_solr_search_navigation(self):
+        facets = []
+        if '&islandora_solr_search_navigation=' in self.url:
+            split_url = self.url.split('&f[')
+            i = 0
+            for field in split_url:
+                if i!= 0:
+                    facet_string = field.split('=')[1]
+                    if facet_string != "":
+                        facets.append(field.split('=')[1])
+                i +=1
+        return facets
+
+    def build_results(self):
+        return {
+            'search_term': self.find_search_term(),
+            'collection': self.find_collection_if_exists(),
+            'facets': self.find_solr_search_navigation()
+        }
+
+
 if __name__ == "__main__":
     import yaml
     connection = AnalyticsConnection(
@@ -89,14 +125,27 @@ if __name__ == "__main__":
     search_terms = {}
     for result in results:
         if len(result['dimensions'][0].split('/')) >= 5:
-            search_term = result['dimensions'][0].split('/')[4].split('?')[0]
-            if search_term != '' and search_term not in search_terms:
-                search_terms[search_term] = int(result['metrics'][0]['values'][0])
-            elif search_term != '':
-                search_terms[search_term] += int(result['metrics'][0]['values'][0])
+            search_term = SearchTerm(result['dimensions'][0]).results
+            if search_term['search_term'] != '' and search_term['search_term'] not in search_terms:
+                search_terms[search_term['search_term']] = {
+                    'values': int(result['metrics'][0]['values'][0]),
+                    'collections': [],
+                    'facets': search_term['facets']
+                }
+                if search_term['collection'] is not None:
+                    search_terms[search_term['search_term']]['collections'].append(search_term['collection'])
+            elif search_term['search_term'] != '':
+                search_terms[search_term['search_term']]['values'] += int(result['metrics'][0]['values'][0])
+                if search_term['collection'] is not None and search_term['collection'] not in search_terms[search_term['search_term']]['collections']:
+                    search_terms[search_term['search_term']]['collections'].append(search_term['collection'])
+                if len(search_term['facets']) > 0:
+                    for facet in search_term['facets']:
+                        if facet not in search_terms[search_term['search_term']]['facets']:
+                            search_terms[search_term['search_term']]['facets'].append(facet)
         else:
             facet = result['dimensions'][0].split('=')[-1]
             if facet == '0':
-                print(result['dimensions'][0])
-    #print(search_terms)
+                #print(result['dimensions'][0])
+                pass
+    print(search_terms)
 
