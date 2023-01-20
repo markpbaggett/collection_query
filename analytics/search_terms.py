@@ -84,7 +84,16 @@ class SearchTerm:
         self.results = self.build_results()
 
     def find_search_term(self):
-        return self.url.split('/')[4].split('?')[0]
+        return self.url.split('/')[4].split('?')[0].split('&f')[0]
+
+    def find_type(self):
+        try:
+            if self.url.split('digital.lib.utk.edu/collections/islandora/search/')[1].startswith('utk_mods_'):
+                return 'facet'
+            else:
+                return 'search_term'
+        except IndexError:
+            return 'browse_and_pagination'
 
     def find_collection_if_exists(self):
         if '&cp' in self.url:
@@ -109,8 +118,18 @@ class SearchTerm:
         return {
             'search_term': self.find_search_term(),
             'collection': self.find_collection_if_exists(),
-            'facets': self.find_solr_search_navigation()
+            'facets': self.find_solr_search_navigation(),
+            'full_string': [self.url],
+            'type': self.find_type()
         }
+
+
+class SearchTermSorter:
+    def __init__(self, terms):
+        self.__terms = terms
+
+    def sort(self):
+        return sorted(self.__terms.items(), key=lambda x:x[1]['values'], reverse=True)
 
 
 if __name__ == "__main__":
@@ -120,22 +139,24 @@ if __name__ == "__main__":
         view_id="118513499",
     )
     page = "digital.lib.utk.edu/collections/islandora/search"
-    connection.process_pages(page=page, start_date='10daysago', end_date='today',)
+    connection.process_pages(page=page, start_date='365daysago', end_date='today',)
     results = connection.results
     search_terms = {}
     for result in results:
         if len(result['dimensions'][0].split('/')) >= 5:
             search_term = SearchTerm(result['dimensions'][0]).results
-            if search_term['search_term'] != '' and search_term['search_term'] not in search_terms:
+            if search_term['search_term'] != '' and search_term['type'] == 'search_term' and search_term['search_term'] not in search_terms:
                 search_terms[search_term['search_term']] = {
                     'values': int(result['metrics'][0]['values'][0]),
                     'collections': [],
-                    'facets': search_term['facets']
+                    'facets': search_term['facets'],
+                    'searches': search_term['full_string']
                 }
                 if search_term['collection'] is not None:
                     search_terms[search_term['search_term']]['collections'].append(search_term['collection'])
-            elif search_term['search_term'] != '':
+            elif search_term['search_term'] != '' and search_term['type'] == 'search_term':
                 search_terms[search_term['search_term']]['values'] += int(result['metrics'][0]['values'][0])
+                #search_terms[search_term['']].append(search_term['full_string'][0])
                 if search_term['collection'] is not None and search_term['collection'] not in search_terms[search_term['search_term']]['collections']:
                     search_terms[search_term['search_term']]['collections'].append(search_term['collection'])
                 if len(search_term['facets']) > 0:
@@ -147,5 +168,11 @@ if __name__ == "__main__":
             if facet == '0':
                 #print(result['dimensions'][0])
                 pass
-    print(search_terms)
+    final = SearchTermSorter(search_terms).sort()
+    i = 0
+    for k, v in final:
+        if v['values'] > 10:
+            print(f"{k}: {v['values']}")
+            i += 1
+    print(i)
 
