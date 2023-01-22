@@ -1,5 +1,7 @@
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
+import csv
+import json
 
 
 class AnalyticsConnection:
@@ -156,7 +158,7 @@ if __name__ == "__main__":
                     search_terms[search_term['search_term']]['collections'].append(search_term['collection'])
             elif search_term['search_term'] != '' and search_term['type'] == 'search_term':
                 search_terms[search_term['search_term']]['values'] += int(result['metrics'][0]['values'][0])
-                #search_terms[search_term['']].append(search_term['full_string'][0])
+                search_terms[search_term['search_term']]['searches'].append(search_term['full_string'][0])
                 if search_term['collection'] is not None and search_term['collection'] not in search_terms[search_term['search_term']]['collections']:
                     search_terms[search_term['search_term']]['collections'].append(search_term['collection'])
                 if len(search_term['facets']) > 0:
@@ -169,10 +171,16 @@ if __name__ == "__main__":
                 #print(result['dimensions'][0])
                 pass
     final = SearchTermSorter(search_terms).sort()
-    i = 0
-    for k, v in final:
-        if v['values'] > 10:
-            print(f"{k}: {v['values']}")
-            i += 1
-    print(i)
-
+    with open('datasets/search_terms/basic.csv', 'w') as basic:
+        writer = csv.DictWriter(basic, fieldnames=['search_term', 'total'])
+        writer.writeheader()
+        for k, v in final:
+            writer.writerow(
+                {
+                    'search_term': k,
+                    'total': v['values']
+                }
+            )
+    json_object = json.dumps(final, indent=4)
+    with open("datasets/search_terms/full.json", "w") as outfile:
+        outfile.write(json_object)
